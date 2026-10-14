@@ -1,0 +1,1326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CYBERESCAPE — OPERATION FIREWALL</title>
+  <style>
+    :root {
+      --bg: #08090c;
+      --panel: #101116;
+      --elevated: #171920;
+      --crimson: #ff3030;
+      --crimson-dim: #641b24;
+      --text: #f4f4f5;
+      --muted: #9295a0;
+      --term: #ff5252;
+      --ok: #48e0a4;
+      --warn: #ffbd59;
+      --glow: rgba(255, 48, 48, 0.18);
+      --radius: 10px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    }
+
+    body {
+      min-height: 100vh;
+      background-image:
+        linear-gradient(rgba(255, 48, 48, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 48, 48, 0.03) 1px, transparent 1px);
+      background-size: 28px 28px;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 80;
+      background: repeating-linear-gradient(
+        to bottom,
+        rgba(8, 9, 12, 0.08) 0px,
+        rgba(8, 9, 12, 0.08) 1px,
+        transparent 1px,
+        transparent 3px
+      );
+    }
+
+    button, input { font-family: inherit; }
+
+    button {
+      cursor: pointer;
+      border: 1px solid var(--crimson);
+      background: var(--elevated);
+      color: var(--text);
+      border-radius: 6px;
+      padding: 8px 14px;
+      letter-spacing: 0.04em;
+      transition: background 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+
+    button:hover {
+      background: #1e1418;
+      box-shadow: 0 0 12px var(--glow);
+      border-color: var(--crimson);
+    }
+
+    button:focus-visible,
+    input:focus-visible,
+    .mission-btn:focus-visible {
+      outline: 2px solid var(--crimson);
+      outline-offset: 2px;
+    }
+
+    button.primary {
+      position: relative;
+      z-index: 2;
+      background: #2a1014;
+      box-shadow: 0 0 0 1px var(--crimson), 0 0 16px var(--glow);
+      text-transform: uppercase;
+      font-weight: 650;
+    }
+
+    .screen {
+      display: none;
+      min-height: 100vh;
+    }
+
+    .screen.active { display: flex; flex-direction: column; }
+    .screen[hidden] { display: none !important; }
+    #screen-game.active { height: 100vh; overflow: hidden; }
+
+    .overlay-screen {
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      position: relative;
+    }
+
+    .hero-card,
+    .result-card {
+      width: min(760px, 100%);
+      background: var(--panel);
+      border: 1px solid var(--crimson);
+      border-radius: var(--radius);
+      padding: 36px 32px;
+      box-shadow: 0 0 0 1px var(--crimson-dim), 0 0 40px var(--glow);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-card::after,
+    .result-card::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: -40%;
+      width: 40%;
+      height: 100%;
+      pointer-events: none;
+      background: linear-gradient(90deg, transparent, rgba(255, 48, 48, 0.08), transparent);
+      animation: sweep 5s linear infinite;
+    }
+
+    @keyframes sweep {
+      0% { left: -40%; }
+      100% { left: 120%; }
+    }
+
+    .kicker {
+      color: var(--term);
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 12px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    h1 {
+      font-size: clamp(32px, 6vw, 52px);
+      letter-spacing: 0.08em;
+      line-height: 1.05;
+    }
+
+    .subtitle {
+      color: var(--warn);
+      letter-spacing: 0.28em;
+      font-size: 13px;
+      margin: 10px 0 22px;
+    }
+
+    .story {
+      color: var(--muted);
+      line-height: 1.65;
+      margin-bottom: 22px;
+    }
+
+    .meta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 26px;
+    }
+
+    .chip {
+      border: 1px solid var(--crimson-dim);
+      background: var(--elevated);
+      color: var(--muted);
+      font-size: 12px;
+      padding: 6px 10px;
+      border-radius: 999px;
+    }
+
+    .chip strong { color: var(--text); font-weight: 600; }
+
+    /* Game chrome */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 10px 16px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--crimson);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+      flex-wrap: wrap;
+      position: sticky;
+      top: 0;
+      z-index: 20;
+    }
+
+    .brand { min-width: 180px; }
+    .brand-title {
+      font-weight: 750;
+      letter-spacing: 0.16em;
+      font-size: 14px;
+    }
+    .brand-sub {
+      color: var(--term);
+      font-size: 11px;
+      letter-spacing: 0.2em;
+    }
+
+    .status-cluster {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 12px;
+    }
+
+    .stat {
+      border: 1px solid var(--crimson-dim);
+      background: var(--elevated);
+      padding: 6px 10px;
+      border-radius: 6px;
+      color: var(--muted);
+    }
+
+    .stat b { color: var(--text); font-weight: 600; }
+    .stat.ok b { color: var(--ok); }
+    .stat.warn b { color: var(--warn); }
+    .stat.danger b { color: var(--crimson); }
+
+    .pulse {
+      display: inline-block;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--ok);
+      margin-right: 6px;
+      box-shadow: 0 0 8px var(--ok);
+      animation: blink 1.4s steps(2, start) infinite;
+    }
+
+    @keyframes blink { 50% { opacity: 0.25; } }
+
+    .nav-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+    .layout {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 250px minmax(0, 1fr) 300px;
+      gap: 12px;
+      padding: 12px;
+      min-height: 0;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--crimson-dim);
+      border-radius: var(--radius);
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 0 18px rgba(0, 0, 0, 0.25);
+    }
+
+    .panel-h {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--crimson-dim);
+      font-size: 12px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .panel-b {
+      padding: 12px;
+      overflow: auto;
+      flex: 1;
+    }
+
+    .mission-btn {
+      width: 100%;
+      text-align: left;
+      margin-bottom: 8px;
+      background: var(--elevated);
+      border: 1px solid var(--crimson-dim);
+      padding: 10px;
+    }
+
+    .mission-btn.active {
+      border-color: var(--crimson);
+      box-shadow: 0 0 14px var(--glow);
+      background: #1c1014;
+    }
+
+    .mission-btn.complete {
+      border-color: var(--crimson-dim);
+    }
+
+    .mission-btn.locked {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    .mission-btn .m-title { display: block; font-weight: 650; }
+    .mission-btn .m-state {
+      display: block;
+      margin-top: 4px;
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .mission-btn.complete .m-state { color: var(--ok); }
+    .mission-btn.active .m-state { color: var(--term); }
+
+    .progress-track {
+      height: 6px;
+      background: #1a1c24;
+      border: 1px solid var(--crimson-dim);
+      border-radius: 99px;
+      overflow: hidden;
+      margin-top: 6px;
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 0;
+      background: linear-gradient(90deg, #8a1a22, var(--crimson));
+      transition: width 0.35s ease;
+    }
+
+    .terminal {
+      border-color: var(--crimson);
+      box-shadow: 0 0 22px var(--glow);
+    }
+
+    .term-out {
+      font-family: Consolas, "Cascadia Mono", "Courier New", monospace;
+      font-size: 13px;
+      line-height: 1.55;
+      color: var(--term);
+      min-height: 240px;
+    }
+
+    .line { white-space: pre-wrap; word-break: break-word; margin-bottom: 2px; }
+    .line.cmd { color: var(--text); }
+    .line.ok { color: var(--ok); }
+    .line.warn { color: var(--warn); }
+    .line.err { color: var(--crimson); }
+    .line.muted { color: var(--muted); }
+
+    .term-in {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-top: 1px solid var(--crimson);
+      padding: 10px 12px;
+      background: var(--elevated);
+    }
+
+    .prompt {
+      font-family: Consolas, "Courier New", monospace;
+      color: var(--crimson);
+      font-weight: 700;
+    }
+
+    .cursor-blink {
+      display: inline-block;
+      width: 8px;
+      height: 14px;
+      background: var(--crimson);
+      animation: blink 1s steps(2, start) infinite;
+    }
+
+    #cmdInput {
+      flex: 1;
+      background: transparent;
+      border: 1px solid var(--crimson-dim);
+      color: var(--text);
+      padding: 8px 10px;
+      border-radius: 6px;
+      font-family: Consolas, "Courier New", monospace;
+    }
+
+    #cmdInput:focus {
+      border-color: var(--crimson);
+      box-shadow: 0 0 10px var(--glow);
+    }
+
+    .section { margin-bottom: 16px; }
+    .section h3 {
+      font-size: 12px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    .brief { color: var(--muted); font-size: 13px; line-height: 1.55; }
+
+    ul.clean {
+      list-style: none;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    ul.clean li {
+      border-left: 2px solid var(--crimson-dim);
+      padding: 6px 8px;
+      margin-bottom: 6px;
+      background: var(--elevated);
+    }
+
+    ul.clean li.done { border-left-color: var(--ok); color: var(--ok); }
+
+    .score-box {
+      border: 1px solid var(--crimson);
+      background: var(--elevated);
+      padding: 10px;
+      border-radius: 8px;
+    }
+
+    .score-box .big {
+      font-size: 28px;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.06em;
+    }
+
+    .formula { font-size: 11px; color: var(--muted); margin-top: 6px; line-height: 1.45; }
+
+    .history-item {
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 11px;
+      color: var(--muted);
+      border-bottom: 1px solid #1c1e26;
+      padding: 4px 0;
+    }
+
+    .result-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin: 18px 0 22px;
+    }
+
+    .result-cell {
+      border: 1px solid var(--crimson-dim);
+      background: var(--elevated);
+      padding: 12px;
+      border-radius: 8px;
+    }
+
+    .result-cell span {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .rank {
+      color: var(--warn);
+      font-size: 22px;
+      letter-spacing: 0.12em;
+      margin-bottom: 8px;
+    }
+
+    @media (max-width: 1100px) {
+      #screen-game.active { height: auto; overflow: auto; }
+      .layout {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto minmax(280px, 1fr) auto;
+      }
+      .layout > aside:first-child { order: 2; }
+      .layout > main { order: 1; min-height: 42vh; }
+      .layout > aside:last-child { order: 3; }
+    }
+
+    @media (max-width: 640px) {
+      .hero-card, .result-card { padding: 22px 16px; }
+      .result-grid { grid-template-columns: 1fr; }
+      .topbar { padding: 10px; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Title screen -->
+  <section id="screen-title" class="screen overlay-screen active" aria-label="Title screen" aria-hidden="false">
+    <div class="hero-card">
+      <div class="kicker">Simulation Node // Restricted Access</div>
+      <h1>CYBERESCAPE</h1>
+      <div class="subtitle">OPERATION FIREWALL</div>
+      <p class="story">
+        You are a junior cybersecurity analyst trapped inside a fictional training simulation.
+        An unknown process has sealed the environment. Recover three linked mission clues and
+        reconstruct the access phrase before the containment timer hits zero. No live systems
+        are contacted. Every scan, file, and cipher in this operation is simulated.
+      </p>
+      <div class="meta-row">
+        <div class="chip">Clearance: <strong>JUNIOR ANALYST</strong></div>
+        <div class="chip">Timer: <strong>10:00</strong></div>
+        <div class="chip">Missions: <strong>03</strong></div>
+      </div>
+      <button class="primary" id="btnStart" type="button">Start Operation</button>
+    </div>
+  </section>
+
+  <!-- Main game -->
+  <section id="screen-game" class="screen" aria-label="Operation interface" hidden aria-hidden="true">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-title">CYBERESCAPE</div>
+        <div class="brand-sub">OPERATION FIREWALL</div>
+      </div>
+      <div class="status-cluster">
+        <div class="stat ok"><span class="pulse"></span>LINK: <b id="linkStatus">SECURE</b></div>
+        <div class="stat">SEC LEVEL: <b id="secLevel">AMBER</b></div>
+        <div class="stat warn" id="timerStat">T-MINUS: <b id="timerDisplay">10:00</b></div>
+        <div class="stat">SCORE: <b id="scoreDisplay">0</b></div>
+      </div>
+      <div class="nav-actions">
+        <button type="button" id="btnHelp" aria-label="Show help">Help</button>
+        <button type="button" id="btnHint" aria-label="Reveal a hint">Hint</button>
+        <button type="button" id="btnRestart" aria-label="Restart the operation">Restart</button>
+      </div>
+    </header>
+
+    <div class="layout">
+      <aside class="panel" aria-label="Mission navigation">
+        <div class="panel-h">Mission Nav</div>
+        <div class="panel-b">
+          <button class="mission-btn active" type="button" data-mission="1" id="navM1">
+            <span class="m-title">01 Digital Footprint</span>
+            <span class="m-state" id="stateM1">Active</span>
+          </button>
+          <button class="mission-btn locked" type="button" data-mission="2" id="navM2">
+            <span class="m-title">02 Encrypted Message</span>
+            <span class="m-state" id="stateM2">Locked</span>
+          </button>
+          <button class="mission-btn locked" type="button" data-mission="3" id="navM3">
+            <span class="m-title">03 Access Recovery</span>
+            <span class="m-state" id="stateM3">Locked</span>
+          </button>
+          <div class="section" style="margin-top:16px">
+            <h3>Operation Progress</h3>
+            <div id="progressLabel" style="font-size:12px;color:var(--muted);margin-bottom:6px">0 / 3 missions</div>
+            <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+          </div>
+        </div>
+      </aside>
+
+      <main class="panel terminal" aria-label="Interactive terminal">
+        <div class="panel-h">Analyst Terminal · Simulated Shell</div>
+        <div class="panel-b term-out" id="termOut" role="log" aria-live="polite"></div>
+        <form class="term-in" id="cmdForm" autocomplete="off">
+          <span class="prompt">root@firewall:~$</span>
+          <input id="cmdInput" type="text" maxlength="120" aria-label="Terminal command input" placeholder="enter command — try help" />
+          <span class="cursor-blink" aria-hidden="true"></span>
+        </form>
+      </main>
+
+      <aside class="panel" aria-label="Briefing and intel">
+        <div class="panel-h">Mission Intel</div>
+        <div class="panel-b">
+          <div class="section">
+            <h3>Briefing</h3>
+            <p class="brief" id="briefingText"></p>
+          </div>
+          <div class="section">
+            <h3>Objectives</h3>
+            <ul class="clean" id="objectivesList"></ul>
+          </div>
+          <div class="section">
+            <h3>Discovered Clues</h3>
+            <ul class="clean" id="cluesList"></ul>
+          </div>
+          <div class="section">
+            <h3>Score</h3>
+            <div class="score-box">
+              <div class="big" id="scoreBig">0</div>
+              <div class="formula">
+                M1 +300 · M2 +400 · M3 +500<br />
+                Time bonus = remaining seconds<br />
+                Each hint −25 (score never goes below 0)
+              </div>
+            </div>
+          </div>
+          <div class="section">
+            <h3>Command History</h3>
+            <div id="historyList"></div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- Victory -->
+  <section id="screen-victory" class="screen overlay-screen" aria-label="Victory screen" hidden aria-hidden="true">
+    <div class="result-card">
+      <div class="kicker">Containment Lifted</div>
+      <h1>ESCAPE CONFIRMED</h1>
+      <div class="subtitle">OPERATION FIREWALL</div>
+      <div class="rank" id="rankLabel">RANK: ANALYST</div>
+      <p class="story" id="victoryCopy">The simulation unlocks. You reconstructed the access phrase and walked out of Operation Firewall.</p>
+      <div class="result-grid">
+        <div class="result-cell"><span>Final Score</span><b id="winScore">0</b></div>
+        <div class="result-cell"><span>Completion Time</span><b id="winTime">00:00</b></div>
+        <div class="result-cell"><span>Hints Used</span><b id="winHints">0</b></div>
+        <div class="result-cell"><span>Missions</span><b id="winMissions">3 / 3</b></div>
+      </div>
+      <button class="primary" type="button" id="btnPlayAgainWin">Play Again</button>
+    </div>
+  </section>
+
+  <!-- Game over -->
+  <section id="screen-gameover" class="screen overlay-screen" aria-label="Game over screen" hidden aria-hidden="true">
+    <div class="result-card">
+      <div class="kicker">Containment Failed</div>
+      <h1>LOCKDOWN</h1>
+      <div class="subtitle">TIMER EXPIRED</div>
+      <p class="story">The simulation sealed you in. Replay the operation, move faster, and reconstruct the access phrase before T-minus hits zero.</p>
+      <div class="result-grid">
+        <div class="result-cell"><span>Score</span><b id="loseScore">0</b></div>
+        <div class="result-cell"><span>Missions Cleared</span><b id="loseMissions">0 / 3</b></div>
+      </div>
+      <button class="primary" type="button" id="btnPlayAgainLose">Play Again</button>
+    </div>
+  </section>
+
+  <script>
+    /* ============================================================
+       CYBERESCAPE — OPERATION FIREWALL
+       Simulated cybersecurity puzzle. No OS commands, no network.
+       ============================================================ */
+
+    /* ---------- Game state ---------- */
+    const TOTAL_SECONDS = 600;
+    const ALLOWED_COMMANDS = ["help", "scan", "inspect", "decode", "clues", "hint", "submit", "clear", "history"];
+
+    const state = {
+      started: false,
+      ended: false,
+      victory: false,
+      mission: 1,
+      completed: { 1: false, 2: false, 3: false },
+      score: 0,
+      hintsUsed: 0,
+      hintsByMission: { 1: 0, 2: 0, 3: 0 },
+      clues: [],
+      inspected: {},
+      decodeStep: 0,
+      remaining: TOTAL_SECONDS,
+      timerId: null,
+      history: [],
+      cmdRecall: [],
+      recallIndex: -1,
+      awarded: { 1: false, 2: false, 3: false, time: false }
+    };
+
+    /* ---------- Mission and clue data ---------- */
+    const FILES = [
+      {
+        name: "quarterly_report.pdf",
+        type: "PDF document",
+        size: "2.14 MB",
+        modified: "2026-10-12 09:18:04",
+        signed: "Finance-CA (valid)",
+        entropy: "low",
+        note: "Ordinary quarterly packet. No executable headers."
+      },
+      {
+        name: "standup_notes.txt",
+        type: "Plain text",
+        size: "12 KB",
+        modified: "2026-10-13 14:02:11",
+        signed: "n/a",
+        entropy: "low",
+        note: "Daily standup log. Mentions a routine patch window."
+      },
+      {
+        name: "ops_memo.pdf.exe",
+        type: "Windows PE executable",
+        size: "847 KB",
+        modified: "2026-10-14 03:17:46",
+        signed: "UNKNOWN / unsigned",
+        entropy: "high",
+        suspicious: true,
+        note: "Double extension. PE header present. Resource table contains operator tag CRIMSON and beacon fragment NODE-7."
+      },
+      {
+        name: "archive_backup.zip",
+        type: "ZIP archive",
+        size: "18.4 MB",
+        modified: "2026-10-13 16:40:02",
+        signed: "Backup-Service",
+        entropy: "medium",
+        note: "Compressed workstation backup. File index is consistent."
+      },
+      {
+        name: "hr_handbook.docx",
+        type: "Office document",
+        size: "420 KB",
+        modified: "2026-10-11 11:22:58",
+        signed: "HR-Template",
+        entropy: "low",
+        note: "Policy handbook. Macros disabled. No outbound strings."
+      }
+    ];
+
+    const CIPHER_TEXT = "WKH ILUHZDOO RSHQV DW QRGH VHYHQ";
+    const PLAIN_TEXT = "THE FIREWALL OPENS AT NODE SEVEN";
+    const ACCESS_PHRASE = "CRIMSON-NODE-7";
+    const SUSPICIOUS_FILE = "ops_memo.pdf.exe";
+
+    const MISSIONS = {
+      1: {
+        title: "Digital Footprint",
+        briefing: "A planted payload is hiding in the simulated file inventory. Scan the workspace, inspect metadata, and submit the filename that matches the threat indicators.",
+        objectives: [
+          "Run scan to list fictional files",
+          "Inspect metadata for anomalies",
+          "Submit the suspicious filename"
+        ],
+        help: [
+          "help — list commands",
+          "scan — fictional file inventory",
+          "inspect <file> — metadata and indicators",
+          "clues — discovered clues",
+          "hint — guidance (−25 score)",
+          "submit <filename> — accuse a file",
+          "clear — clear terminal",
+          "history — recent commands"
+        ]
+      },
+      2: {
+        title: "Encrypted Message",
+        briefing: "The payload carried a Caesar cipher with a shift of three. Decode the alphabet backwards by three letters. Example: WKH becomes THE. Submit the full plaintext phrase.",
+        objectives: [
+          "Run decode to study the cipher",
+          "Shift every letter back by 3",
+          "Submit the recovered message"
+        ],
+        help: [
+          "help — list commands",
+          "decode — explain the cipher (repeat for more detail)",
+          "clues / hint / submit <phrase> / clear / history"
+        ]
+      },
+      3: {
+        title: "Access Recovery",
+        briefing: "The simulation lock expects an access phrase. Combine the operator color tag from Mission 1 with the node identifier from the decoded message. Format: COLOR-NODE-NUMBER",
+        objectives: [
+          "Review clues from earlier missions",
+          "Build COLOR-NODE-NUMBER",
+          "Submit the access phrase"
+        ],
+        help: [
+          "help — list commands",
+          "clues — assembled intel",
+          "hint — format reminder (−25 score)",
+          "submit <phrase> — attempt unlock",
+          "clear / history"
+        ]
+      }
+    };
+
+    const HINTS = {
+      1: [
+        "Trusted documents do not ship with a second, executable extension.",
+        "Look for an unsigned file touched in the middle of the night with high entropy.",
+        "The planted name mimics a memo PDF but ends with .exe — ops_memo.pdf.exe"
+      ],
+      2: [
+        "Caesar shift 3 means A in the cipher is actually X of the original, B is Y… easier: move each cipher letter three steps backward.",
+        "Worked example: W→T, K→H, H→E so WKH = THE. Keep going through every word.",
+        "The plaintext is: THE FIREWALL OPENS AT NODE SEVEN"
+      ],
+      3: [
+        "Format is COLOR-NODE-NUMBER with hyphens and no spaces.",
+        "COLOR is the operator tag recovered from the suspicious file. NODE and NUMBER come from NODE-7 / NODE SEVEN.",
+        "Submit: CRIMSON-NODE-7"
+      ]
+    };
+
+    /* ---------- DOM ---------- */
+    const $ = (id) => document.getElementById(id);
+    const termOut = $("termOut");
+    const cmdInput = $("cmdInput");
+
+    /* ---------- Screen transitions ---------- */
+    function showScreen(id) {
+      document.querySelectorAll(".screen").forEach((el) => {
+        el.classList.remove("active");
+        el.hidden = true;
+        el.setAttribute("aria-hidden", "true");
+      });
+      const next = $(id);
+      next.hidden = false;
+      next.setAttribute("aria-hidden", "false");
+      next.classList.add("active");
+    }
+
+    /* ---------- Terminal rendering (safe text only) ---------- */
+    function printLine(text, cls) {
+      const line = document.createElement("div");
+      line.className = "line" + (cls ? " " + cls : "");
+      line.textContent = text;
+      termOut.appendChild(line);
+      termOut.scrollTop = termOut.scrollHeight;
+    }
+
+    function printBlock(lines, cls) {
+      lines.forEach((t) => printLine(t, cls));
+    }
+
+    function clearTerminal() {
+      termOut.textContent = "";
+    }
+
+    function addHistory(cmd) {
+      state.history.unshift(cmd);
+      state.history = state.history.slice(0, 8);
+      renderHistory();
+    }
+
+    function renderHistory() {
+      const box = $("historyList");
+      box.textContent = "";
+      if (!state.history.length) {
+        const empty = document.createElement("div");
+        empty.className = "history-item";
+        empty.textContent = "No commands yet.";
+        box.appendChild(empty);
+        return;
+      }
+      state.history.forEach((item) => {
+        const row = document.createElement("div");
+        row.className = "history-item";
+        row.textContent = item;
+        box.appendChild(row);
+      });
+    }
+
+    /* ---------- UI sync ---------- */
+    function renderScore() {
+      $("scoreDisplay").textContent = String(state.score);
+      $("scoreBig").textContent = String(state.score);
+    }
+
+    function renderClues() {
+      const list = $("cluesList");
+      list.textContent = "";
+      if (!state.clues.length) {
+        const li = document.createElement("li");
+        li.textContent = "No clues recovered yet.";
+        list.appendChild(li);
+        return;
+      }
+      state.clues.forEach((c) => {
+        const li = document.createElement("li");
+        li.textContent = c;
+        list.appendChild(li);
+      });
+    }
+
+    function addClue(text) {
+      if (state.clues.includes(text)) return;
+      state.clues.push(text);
+      renderClues();
+    }
+
+    function renderMissionNav() {
+      for (let i = 1; i <= 3; i++) {
+        const btn = $("navM" + i);
+        const label = $("stateM" + i);
+        btn.classList.remove("active", "locked", "complete");
+        const unlocked = i === 1 || state.completed[i - 1];
+        if (state.completed[i]) {
+          btn.classList.add("complete");
+          label.textContent = "Completed";
+        } else if (!unlocked) {
+          btn.classList.add("locked");
+          label.textContent = "Locked";
+        } else if (state.mission === i) {
+          btn.classList.add("active");
+          label.textContent = "Active";
+        } else {
+          label.textContent = "Available";
+        }
+      }
+      const done = Object.values(state.completed).filter(Boolean).length;
+      $("progressLabel").textContent = done + " / 3 missions";
+      $("progressFill").style.width = (done / 3) * 100 + "%";
+      $("secLevel").textContent = done === 0 ? "AMBER" : done === 1 ? "ELEVATED" : done === 2 ? "CRITICAL" : "CLEARED";
+    }
+
+    function renderBriefing() {
+      const m = MISSIONS[state.mission];
+      $("briefingText").textContent = m.briefing;
+      const list = $("objectivesList");
+      list.textContent = "";
+      m.objectives.forEach((obj, idx) => {
+        const li = document.createElement("li");
+        const done = state.completed[state.mission];
+        if (done) li.className = "done";
+        li.textContent = (done ? "[x] " : "[ ] ") + obj;
+        list.appendChild(li);
+        void idx;
+      });
+    }
+
+    function formatTime(sec) {
+      const s = Math.max(0, sec);
+      const mm = String(Math.floor(s / 60)).padStart(2, "0");
+      const ss = String(s % 60).padStart(2, "0");
+      return mm + ":" + ss;
+    }
+
+    function renderTimer() {
+      $("timerDisplay").textContent = formatTime(state.remaining);
+      const wrap = $("timerStat");
+      wrap.classList.remove("warn", "danger", "ok");
+      if (state.remaining <= 60) wrap.classList.add("danger");
+      else wrap.classList.add("warn");
+    }
+
+    /* ---------- Timer lifecycle ---------- */
+    function startTimer() {
+      stopTimer();
+      state.timerId = setInterval(() => {
+        if (state.ended) return;
+        state.remaining -= 1;
+        renderTimer();
+        if (state.remaining <= 0) {
+          state.remaining = 0;
+          triggerGameOver();
+        }
+      }, 1000);
+    }
+
+    function stopTimer() {
+      if (state.timerId !== null) {
+        clearInterval(state.timerId);
+        state.timerId = null;
+      }
+    }
+
+    /* ---------- Scoring ---------- */
+    const MISSION_POINTS = { 1: 300, 2: 400, 3: 500 };
+
+    function addScore(n) {
+      state.score = Math.max(0, state.score + n);
+      renderScore();
+    }
+
+    function awardMission(id) {
+      if (state.awarded[id]) return;
+      state.awarded[id] = true;
+      addScore(MISSION_POINTS[id]);
+    }
+
+    function applyHintPenalty() {
+      addScore(-25);
+    }
+
+    function missionRank(score) {
+      if (score >= 1400) return "FIREWALL MASTER";
+      if (score >= 1100) return "SENIOR ANALYST";
+      if (score >= 800) return "ANALYST";
+      return "JUNIOR OPERATIVE";
+    }
+
+    /* ---------- Mission progression ---------- */
+    function canAccess(id) {
+      if (id === 1) return true;
+      return state.completed[id - 1];
+    }
+
+    function setMission(id) {
+      if (state.ended) return;
+      if (!canAccess(id)) {
+        printLine("ACCESS DENIED: complete the previous mission first.", "err");
+        return;
+      }
+      state.mission = id;
+      renderMissionNav();
+      renderBriefing();
+      printLine("— switched to Mission 0" + id + ": " + MISSIONS[id].title + " —", "warn");
+      printBlock(MISSIONS[id].help, "muted");
+    }
+
+    function completeMission(id) {
+      if (state.completed[id]) return;
+      state.completed[id] = true;
+      awardMission(id);
+      renderMissionNav();
+      renderBriefing();
+      printLine("MISSION 0" + id + " COMPLETE. +" + MISSION_POINTS[id] + " points.", "ok");
+      if (id === 1) {
+        addClue("Operator tag recovered: CRIMSON");
+        addClue("Beacon fragment: NODE-7");
+        addClue("Suspicious file: " + SUSPICIOUS_FILE);
+        printLine("Mission 02 Encrypted Message is now unlocked.", "ok");
+        setMission(2);
+      } else if (id === 2) {
+        addClue("Decoded message: " + PLAIN_TEXT);
+        printLine("Mission 03 Access Recovery is now unlocked.", "ok");
+        setMission(3);
+      } else if (id === 3) {
+        triggerVictory();
+      }
+    }
+
+    /* ---------- Command handlers ---------- */
+    function handleHelp() {
+      printLine("Available commands for Mission 0" + state.mission + ":", "warn");
+      printBlock(MISSIONS[state.mission].help, "muted");
+    }
+
+    function handleScan() {
+      if (state.mission !== 1) {
+        printLine("scan is only available during Mission 01.", "err");
+        return;
+      }
+      printLine("SIMULATED INVENTORY — no live filesystem accessed", "warn");
+      FILES.forEach((f) => {
+        printLine("  " + f.name + "   " + f.size + "   " + f.modified, "");
+      });
+      printLine("Use inspect <filename> for metadata.", "muted");
+    }
+
+    function handleInspect(arg) {
+      if (state.mission !== 1) {
+        printLine("inspect is only available during Mission 01.", "err");
+        return;
+      }
+      if (!arg) {
+        printLine("Usage: inspect <filename>", "warn");
+        printLine("Known files: " + FILES.map((f) => f.name).join(", "), "muted");
+        return;
+      }
+      const target = FILES.find((f) => f.name.toLowerCase() === arg.toLowerCase());
+      if (!target) {
+        printLine("File not found in simulated inventory: " + arg, "err");
+        return;
+      }
+      state.inspected[target.name] = true;
+      printLine("INSPECT " + target.name, "warn");
+      printLine("Type: " + target.type);
+      printLine("Size: " + target.size);
+      printLine("Modified: " + target.modified);
+      printLine("Signature: " + target.signed);
+      printLine("Entropy: " + target.entropy);
+      printLine("Notes: " + target.note);
+      if (target.suspicious) {
+        addClue("Unsigned PE with double extension (.pdf.exe)");
+        addClue("Off-hours timestamp 03:17:46");
+        addClue("High entropy + operator tag CRIMSON");
+        printLine("INDICATOR MATCH: this object exhibits multiple threat flags.", "ok");
+      }
+    }
+
+    function handleDecode() {
+      if (state.mission !== 2) {
+        printLine("decode is only available during Mission 02.", "err");
+        return;
+      }
+      state.decodeStep += 1;
+      printLine("CIPHERTEXT: " + CIPHER_TEXT, "warn");
+      printLine("Method: Caesar cipher, shift of 3 (each letter moved 3 places forward).");
+      printLine("To solve: move every letter 3 places backward. Spaces stay in place.");
+      if (state.decodeStep >= 2) {
+        printLine("Alphabet map (cipher → plain): D→A  E→B  F→C  ...  W→T  X→U  Y→V  Z→W", "muted");
+        printLine("Worked example: WKH → T H E", "muted");
+      }
+      if (state.decodeStep >= 3) {
+        printLine("First two words decode to THE FIREWALL. Continue the rest, then submit.", "ok");
+        addClue("Cipher uses Caesar shift 3");
+        addClue("Ciphertext: " + CIPHER_TEXT);
+      }
+    }
+
+    function handleClues() {
+      if (!state.clues.length) {
+        printLine("No clues stored. Inspect files, decode the message, or complete missions.", "warn");
+        return;
+      }
+      printLine("CLUE LOCKER", "warn");
+      state.clues.forEach((c, i) => printLine((i + 1) + ". " + c));
+    }
+
+    function handleHint() {
+      const list = HINTS[state.mission];
+      const idx = Math.min(state.hintsByMission[state.mission], list.length - 1);
+      state.hintsByMission[state.mission] += 1;
+      state.hintsUsed += 1;
+      applyHintPenalty();
+      printLine("HINT " + Math.min(idx + 1, list.length) + " (−25 pts): " + list[idx], "warn");
+    }
+
+    function normalizeAnswer(s) {
+      return s.replace(/\s+/g, " ").trim().toLowerCase();
+    }
+
+    function handleSubmit(arg) {
+      if (!arg) {
+        printLine("Usage: submit <answer>", "warn");
+        return;
+      }
+      if (state.completed[state.mission]) {
+        printLine("This mission is already complete. No additional points awarded.", "muted");
+        return;
+      }
+      if (state.mission === 1) {
+        const guess = arg.trim().toLowerCase();
+        if (guess === SUSPICIOUS_FILE) {
+          printLine("CONFIRMED. " + SUSPICIOUS_FILE + " is the planted payload.", "ok");
+          completeMission(1);
+        } else {
+          const known = FILES.find((f) => f.name.toLowerCase() === guess);
+          if (known && !known.suspicious) {
+            printLine("Rejected. " + known.name + " looks legitimate (" + known.signed + ", " + known.entropy + " entropy).", "err");
+          } else {
+            printLine("That filename does not match the threat set. Recheck extensions, signatures, and timestamps.", "err");
+          }
+        }
+      } else if (state.mission === 2) {
+        if (normalizeAnswer(arg) === normalizeAnswer(PLAIN_TEXT)) {
+          printLine("PLAINTEXT ACCEPTED.", "ok");
+          completeMission(2);
+        } else {
+          printLine("Incorrect plaintext. Shift every letter back by three and include the full sentence.", "err");
+        }
+      } else if (state.mission === 3) {
+        const compact = arg.trim().toUpperCase().replace(/\s+/g, "");
+        const expected = ACCESS_PHRASE.replace(/\s+/g, "");
+        if (compact === expected) {
+          printLine("ACCESS PHRASE ACCEPTED. Unlocking simulation…", "ok");
+          completeMission(3);
+        } else {
+          printLine("Phrase rejected. Expected format COLOR-NODE-NUMBER using intel from missions 1 and 2.", "err");
+        }
+      }
+    }
+
+    function handleHistory() {
+      if (!state.cmdRecall.length) {
+        printLine("Command recall is empty.", "muted");
+        return;
+      }
+      printLine("Recent inputs:", "warn");
+      state.cmdRecall.slice(-10).forEach((c) => printLine("  " + c, "muted"));
+    }
+
+    /* ---------- Command parser (allowlist only) ---------- */
+    function parseCommand(raw) {
+      const trimmed = String(raw || "").trim();
+      if (!trimmed) return;
+      if (state.ended) {
+        printLine("Session closed. Use Play Again.", "err");
+        return;
+      }
+      printLine("root@firewall:~$ " + trimmed, "cmd");
+      addHistory(trimmed);
+      state.cmdRecall.push(trimmed);
+      state.recallIndex = state.cmdRecall.length;
+
+      const parts = trimmed.split(/\s+/);
+      const verb = parts[0].toLowerCase();
+      const arg = trimmed.slice(parts[0].length).trim();
+
+      if (ALLOWED_COMMANDS.indexOf(verb) === -1) {
+        printLine("Unknown command. Type help for the allowlist.", "err");
+        return;
+      }
+
+      switch (verb) {
+        case "help": handleHelp(); break;
+        case "scan": handleScan(); break;
+        case "inspect": handleInspect(arg); break;
+        case "decode": handleDecode(); break;
+        case "clues": handleClues(); break;
+        case "hint": handleHint(); break;
+        case "submit": handleSubmit(arg); break;
+        case "clear": clearTerminal(); printLine("Terminal buffer cleared.", "muted"); break;
+        case "history": handleHistory(); break;
+        default:
+          printLine("Command blocked by parser.", "err");
+      }
+    }
+
+    /* ---------- Victory / game over ---------- */
+    function triggerVictory() {
+      if (state.ended) return;
+      state.ended = true;
+      state.victory = true;
+      stopTimer();
+      if (!state.awarded.time) {
+        state.awarded.time = true;
+        addScore(state.remaining);
+      }
+      $("winScore").textContent = String(state.score);
+      $("winTime").textContent = formatTime(TOTAL_SECONDS - state.remaining);
+      $("winHints").textContent = String(state.hintsUsed);
+      $("winMissions").textContent = "3 / 3";
+      $("rankLabel").textContent = "RANK: " + missionRank(state.score);
+      $("victoryCopy").textContent =
+        "Access phrase " + ACCESS_PHRASE + " opened the simulated gate. Remaining seconds were added as a time bonus.";
+      showScreen("screen-victory");
+    }
+
+    function triggerGameOver() {
+      if (state.ended) return;
+      state.ended = true;
+      state.victory = false;
+      stopTimer();
+      const done = Object.values(state.completed).filter(Boolean).length;
+      $("loseScore").textContent = String(state.score);
+      $("loseMissions").textContent = done + " / 3";
+      showScreen("screen-gameover");
+    }
+
+    /* ---------- Restart logic ---------- */
+    function resetState() {
+      stopTimer();
+      state.started = false;
+      state.ended = false;
+      state.victory = false;
+      state.mission = 1;
+      state.completed = { 1: false, 2: false, 3: false };
+      state.score = 0;
+      state.hintsUsed = 0;
+      state.hintsByMission = { 1: 0, 2: 0, 3: 0 };
+      state.clues = [];
+      state.inspected = {};
+      state.decodeStep = 0;
+      state.remaining = TOTAL_SECONDS;
+      state.history = [];
+      state.cmdRecall = [];
+      state.recallIndex = -1;
+      state.awarded = { 1: false, 2: false, 3: false, time: false };
+      clearTerminal();
+      renderScore();
+      renderClues();
+      renderHistory();
+      renderMissionNav();
+      renderBriefing();
+      renderTimer();
+    }
+
+    function bootOperation() {
+      resetState();
+      state.started = true;
+      showScreen("screen-game");
+      printLine("OPERATION FIREWALL — simulated analyst shell online.", "ok");
+      printLine("No operating-system commands will be executed.", "muted");
+      printLine("Mission 01 loaded: Digital Footprint. Type help to begin.", "warn");
+      handleHelp();
+      startTimer();
+      cmdInput.focus();
+    }
+
+    /* ---------- Events ---------- */
+    $("btnStart").addEventListener("click", bootOperation);
+    $("btnPlayAgainWin").addEventListener("click", () => {
+      resetState();
+      showScreen("screen-title");
+    });
+    $("btnPlayAgainLose").addEventListener("click", () => {
+      resetState();
+      showScreen("screen-title");
+    });
+    $("btnHelp").addEventListener("click", () => {
+      if (!state.started || state.ended) return;
+      parseCommand("help");
+      cmdInput.focus();
+    });
+    $("btnHint").addEventListener("click", () => {
+      if (!state.started || state.ended) return;
+      parseCommand("hint");
+      cmdInput.focus();
+    });
+    $("btnRestart").addEventListener("click", () => {
+      bootOperation();
+    });
+
+    document.querySelectorAll(".mission-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        if (!state.started || state.ended) return;
+        setMission(Number(btn.getAttribute("data-mission")));
+        cmdInput.focus();
+      });
+    });
+
+    $("cmdForm").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const value = cmdInput.value;
+      cmdInput.value = "";
+      parseCommand(value);
+    });
+
+    cmdInput.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        if (!state.cmdRecall.length) return;
+        state.recallIndex = Math.max(0, state.recallIndex - 1);
+        cmdInput.value = state.cmdRecall[state.recallIndex] || "";
+      } else if (e.key === "ArrowDown") {
+        e.preventDefault();
+        state.recallIndex = Math.min(state.cmdRecall.length, state.recallIndex + 1);
+        cmdInput.value = state.cmdRecall[state.recallIndex] || "";
+      }
+    });
+
+    /* Initial paint for title-to-game consistency */
+    renderScore();
+    renderClues();
+    renderHistory();
+    renderMissionNav();
+    renderBriefing();
+    renderTimer();
+  </script>
+</body>
+</html>
